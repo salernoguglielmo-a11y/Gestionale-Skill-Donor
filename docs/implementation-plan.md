@@ -134,6 +134,44 @@ Nota: `da_verificare` estende gli stati iniziali del brief perché il seed richi
 | 7 | Sicurezza, test, documentazione | ✅ completata |
 | 8 | Verifica visiva e handoff | ✅ completata |
 
+## 3-bis. Esito delle verifiche (10 agosto 2026)
+
+Eseguite sul repository `Gestionale-Skill-Donor`, senza credenziali esterne.
+
+| Controllo | Comando | Esito |
+| --- | --- | --- |
+| Lint | `pnpm lint` | ✅ nessun problema |
+| Type check | `pnpm typecheck` | ✅ package, web e MCP |
+| Test unitari e di integrazione | `pnpm test` | ✅ 76/76 (5 file) |
+| Test end-to-end | `pnpm test:e2e` | ✅ 63/63 (21 × 1440 px, 1024 px, smartphone) |
+| Build di produzione | `pnpm build` | ✅ 27 route |
+| Server MCP | handshake stdio | ✅ 13 tool, lettura reale, scrittura come proposta |
+
+### Difetti trovati dai test e corretti
+
+Non cosmetici: tre sarebbero arrivati in produzione.
+
+1. **Redirect di autenticazione costruiti sull'host sbagliato.** `new URL(path,
+   request.url)` restituiva l'host interno anziché quello pubblico: il cookie di
+   sessione non veniva inviato e l'utente tornava alla pagina di accesso. Dietro
+   `ops.skilldonor.org` avrebbe reso impossibile l'accesso. Corretto con
+   `absoluteUrl()`, che usa `x-forwarded-host` / `x-forwarded-proto`.
+2. **Race nella barra filtri.** Digitare nella ricerca e cliccare subito un
+   filtro faceva perdere uno dei due aggiornamenti, per via di una closure sui
+   parametri ormai vecchia. Ora le modifiche partono dall'URL corrente.
+3. **Conferma persa approvando una bozza.** L'approvazione sposta la bozza nello
+   storico e smonta il riquadro che conteneva il messaggio: l'utente vedeva una
+   riga sparire senza spiegazione. Il riscontro è stato spostato sopra l'elenco.
+4. **Trabocco orizzontale su smartphone.** Gli elementi di griglia hanno
+   `min-width: auto` e non si restringevano sotto la larghezza del contenuto.
+   Risolto con `min-w-0` sulle colonne.
+5. **Euristica di prompt injection incompleta in inglese.** «Ignore all previous
+   instructions» non veniva riconosciuta. Espressione regolare corretta e test
+   estesi a più formulazioni.
+6. **`next lint` rimosso in Next 16.** Sostituito con `eslint .` e configurazione
+   flat nativa; corretti due errori reali di React (`setState` sincrono dentro un
+   effetto) in barra filtri e palette dei comandi.
+
 ## 4. Registro decisioni e problemi
 
 - **2026-08-10 — `project_sources/` assente.** Non bloccante: colori ufficiali noti dal
