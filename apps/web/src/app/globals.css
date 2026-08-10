@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@import "@sdoh/ui/styles.css";
+
+/* Tailwind 4 analizza per default l'albero dell'app: i componenti del package
+   `@sdoh/ui` vivono fuori e vanno dichiarati esplicitamente, altrimenti le loro
+   classi non finiscono nel CSS generato. */
+@source "../../../../packages/ui/src";

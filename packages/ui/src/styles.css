@@ -1,0 +1,166 @@
+/*
+ * Design system Skill Donor Operations Hub.
+ *
+ * Colori ufficiali: arancione #FF5900 e grigio #404040. `#FF4900` non compare.
+ * L'arancione è un accento — bordi, indicatori, stati selezionati, focus — non
+ * lo sfondo dominante: l'interfaccia poggia su bianco, off-white e grigi.
+ *
+ * Contrasto (WCAG AA, testo normale ≥ 4.5:1) verificato sui token di testo:
+ *   #404040 su bianco → 10.4:1   #6B6B6B su bianco → 5.3:1
+ *   bianco su #C44300 → 5.0:1    bianco su #B42318 → 6.4:1
+ * L'arancione puro #FF5900 su bianco vale 3.1:1: è usato solo per superfici
+ * decorative, bordi e icone, mai per testo di piccole dimensioni. Le azioni
+ * primarie usano #C44300, la variante scura della stessa tinta.
+ */
+
+@theme {
+  /* Brand */
+  --color-brand: #ff5900;
+  --color-brand-strong: #c44300;
+  --color-brand-deep: #8f3100;
+  --color-brand-tint: #fff4ee;
+  --color-brand-tint-strong: #ffe4d5;
+  --color-brand-border: #ffc4a3;
+
+  /* Neutri */
+  --color-ink: #404040;
+  --color-ink-strong: #1f1f1f;
+  --color-muted: #6b6b6b;
+  --color-faint: #8a8a8a;
+  --color-canvas: #fbfaf9;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f5f4f2;
+  --color-line: #e3e1de;
+  --color-line-soft: #efedea;
+
+  /* Semantici */
+  --color-danger: #b42318;
+  --color-danger-tint: #fef3f2;
+  --color-warning: #b54708;
+  --color-warning-tint: #fffaeb;
+  --color-success: #0f7a3d;
+  --color-success-tint: #edfbf3;
+  --color-info: #175cd3;
+  --color-info-tint: #eff6ff;
+
+  /* Tipografia */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* Densità: l'app è desktop-first e ad alta densità informativa. */
+  --spacing-row: 0.5rem;
+  --radius-panel: 0.625rem;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--color-ink-strong);
+    font-weight: 600;
+    letter-spacing: -0.011em;
+  }
+
+  /* Un solo stile di focus in tutta l'app, sempre visibile da tastiera. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-tint-strong);
+    color: var(--color-ink-strong);
+  }
+
+  /* Rispetta la preferenza di sistema per il movimento ridotto. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Contenitore standard dei pannelli: usato da Card e da tutte le sezioni. */
+  .sd-panel {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-panel);
+  }
+
+  /* Barra di accento arancione a sinistra: segnala priorità o selezione. */
+  .sd-accent-bar {
+    box-shadow: inset 3px 0 0 0 var(--color-brand);
+  }
+
+  /* Tabelle dense con intestazione persistente. */
+  .sd-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .sd-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--color-surface-sunken);
+    color: var(--color-muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-line);
+    white-space: nowrap;
+  }
+
+  .sd-table td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-line-soft);
+    vertical-align: top;
+  }
+
+  .sd-table tbody tr:hover td {
+    background-color: var(--color-brand-tint);
+  }
+
+  /* Testo troncato su due righe senza tagli a metà carattere. */
+  .sd-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .sd-scroll-x {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+}

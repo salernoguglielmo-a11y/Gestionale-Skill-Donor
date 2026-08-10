@@ -1,0 +1,22 @@
+{
+  "name": "@sdoh/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "sdoh-mcp": "./src/server.ts"
+  },
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@sdoh/core": "workspace:*",
+    "@sdoh/db": "workspace:*",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "tsx": "4.23.12"
+  }
+}

@@ -1,0 +1,23 @@
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Dati locali: database PGlite di sviluppo, demo e test
+.data/
+
+# Variabili d'ambiente: mai committate
+.env
+.env.local
+.env.*.local
+
+# Esiti dei test
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
+.DS_Store
+*.log

@@ -1,0 +1,41 @@
+{
+  "name": "skill-donor-ops-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gestionale interno di Skill Donor S.r.l. – SIAVS",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @sdoh/web dev",
+    "build": "pnpm --filter @sdoh/web build",
+    "start": "pnpm --filter @sdoh/web start",
+    "lint": "pnpm --filter @sdoh/web lint",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit && tsc -p apps/mcp/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "db:generate": "pnpm --filter @sdoh/db generate",
+    "db:migrate": "pnpm --filter @sdoh/db migrate",
+    "db:seed": "pnpm --filter @sdoh/db seed",
+    "db:reset": "pnpm --filter @sdoh/db reset",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "mcp": "pnpm --filter @sdoh/mcp start",
+    "setup": "pnpm install && pnpm db:migrate && pnpm db:seed",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.4",
+    "@playwright/test": "1.62.1",
+    "@types/node": "22.19.2",
+    "drizzle-orm": "0.45.2",
+    "tsx": "4.23.12",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10",
+    "zod": "4.4.3"
+  },
+  "type": "module"
+}

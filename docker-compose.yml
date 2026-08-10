@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sdoh-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sdoh
+      POSTGRES_PASSWORD: sdoh_local_dev
+      POSTGRES_DB: sdoh
+      TZ: Europe/Rome
+    ports:
+      - "5433:5432"
+    volumes:
+      - sdoh_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sdoh -d sdoh"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sdoh_pgdata:
