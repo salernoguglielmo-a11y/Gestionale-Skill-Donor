@@ -69,6 +69,76 @@ Il seed è idempotente: rieseguirlo non duplica nulla, ma sovrascrive le 32
 attività dello snapshot con i valori originali. Dopo la messa in esercizio, **non
 rieseguirlo**.
 
+## 3-bis. Vercel e piattaforme serverless
+
+Il deploy su Vercel funziona, ma con un vincolo che va capito prima di iniziare.
+
+### PGlite non è utilizzabile in serverless
+
+Senza `DATABASE_URL` l'applicazione usa PGlite, che **scrive su disco e mantiene
+lo stato fra una richiesta e l'altra**. Su Vercel nessuna delle due cose è vera:
+il filesystem è di sola lettura tranne `/tmp`, e ogni invocazione può girare su
+un'istanza diversa. I dati sparirebbero fra una schermata e la successiva.
+
+L'applicazione se ne accorge e **si ferma con un messaggio esplicito** invece di
+fallire a metà di una migrazione: la pagina di accesso dichiara che la modalità
+demo non è disponibile e spiega cosa manca.
+
+**Serve quindi un PostgreSQL gestito**: Vercel Postgres, Neon, Supabase o
+equivalente.
+
+### Impostazioni del progetto
+
+| Impostazione | Valore |
+| --- | --- |
+| **Root Directory** | `apps/web` |
+| **Framework Preset** | Next.js (rilevato) |
+| **Node.js Version** | 22.x |
+
+`apps/web/vercel.json` contiene già `installCommand` e `buildCommand` corretti
+per il workspace pnpm: l'installazione parte dalla radice del monorepo, così i
+package interni vengono risolti.
+
+### Variabili d'ambiente
+
+```
+DATABASE_URL           postgres://…        obbligatoria
+TOKEN_ENCRYPTION_KEY   openssl rand -base64 32   obbligatoria
+DEMO_MODE              off
+GOOGLE_CLIENT_ID       …
+GOOGLE_CLIENT_SECRET   …
+GOOGLE_REDIRECT_URI    https://<dominio>/api/auth/callback
+ALLOWED_EMAIL          g.salerno@skilldonor.org
+OPENAI_API_KEY / OPENAI_MODEL           facoltative
+ANTHROPIC_API_KEY / ANTHROPIC_MODEL     facoltative
+```
+
+`GOOGLE_REDIRECT_URI` deve coincidere **carattere per carattere** con l'URI
+registrato in Google Cloud Console. Gli URL di anteprima di Vercel cambiano a
+ogni deploy: registrare il dominio stabile di produzione, non quello di preview.
+
+### Migrazioni
+
+Le migrazioni **non vengono eseguite dal deploy**: sarebbero un'operazione di
+schema dentro un processo effimero, con più istanze in parallelo. Vanno lanciate
+una volta, dalla propria macchina, puntando al database remoto:
+
+```bash
+DATABASE_URL='postgres://…' pnpm db:migrate
+DATABASE_URL='postgres://…' pnpm db:seed     # solo al primo avvio
+```
+
+### Limiti da conoscere
+
+- **Il server MCP non gira su Vercel**: usa il trasporto stdio ed è pensato per
+  essere avviato dal client sulla macchina dell'utente. Il deploy web e l'MCP
+  sono due cose distinte.
+- **Rate limiting in memoria**: con più istanze serverless ogni istanza ha il
+  proprio contatore. Per un uso monoutente è accettabile; per un uso intenso
+  serve un contatore condiviso.
+- `x-forwarded-host` e `x-forwarded-proto` sono impostati dal proxy di Vercel,
+  quindi i redirect di accesso funzionano senza configurazione aggiuntiva.
+
 ## 4. Reverse proxy
 
 L'applicazione si fida di `x-forwarded-host` e `x-forwarded-proto` per costruire

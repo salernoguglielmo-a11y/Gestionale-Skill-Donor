@@ -16,18 +16,48 @@ export interface AuthMode {
   googleConfigured: boolean;
   missingVariables: string[];
   demoAllowed: boolean;
+  /** Spiegazione da mostrare quando la demo non è disponibile. */
+  demoUnavailableReason: string | null;
   allowedEmail: string | null;
+}
+
+/**
+ * La modalità demo usa PGlite, che richiede un filesystem scrivibile e
+ * persistente. Su una piattaforma serverless senza `DATABASE_URL` non può
+ * funzionare: si dichiara indisponibile invece di offrire un pulsante che
+ * porterebbe a un errore.
+ */
+function serverlessPlatform(): string | null {
+  if (process.env.VERCEL) return 'Vercel';
+  if (process.env.NETLIFY) return 'Netlify';
+  if (process.env.AWS_LAMBDA_FUNCTION_NAME) return 'AWS Lambda';
+  if (process.env.CF_PAGES) return 'Cloudflare Pages';
+  return null;
 }
 
 export function getAuthMode(): AuthMode {
   const config = readOAuthConfig();
   const configured = isOAuthConfigured(config);
-  // La modalità demo si disattiva esplicitamente con DEMO_MODE=off.
-  const demoAllowed = process.env.DEMO_MODE !== 'off';
+
+  const platform = serverlessPlatform();
+  const hasDatabase = Boolean(process.env.DATABASE_URL);
+
+  let demoAllowed = process.env.DEMO_MODE !== 'off';
+  let demoUnavailableReason: string | null = demoAllowed ? null : 'Disattivata con DEMO_MODE=off.';
+
+  if (demoAllowed && platform && !hasDatabase) {
+    demoAllowed = false;
+    demoUnavailableReason =
+      `Su ${platform} la modalità demo richiede un database gestito: imposta DATABASE_URL ` +
+      'ed esegui una volta le migrazioni. PGlite ha bisogno di un filesystem scrivibile e ' +
+      'persistente, che le piattaforme serverless non offrono.';
+  }
+
   return {
     googleConfigured: configured,
     missingVariables: configured ? [] : config.missing,
     demoAllowed,
+    demoUnavailableReason,
     allowedEmail: configured ? config.allowedEmail : (process.env.ALLOWED_EMAIL ?? null),
   };
 }

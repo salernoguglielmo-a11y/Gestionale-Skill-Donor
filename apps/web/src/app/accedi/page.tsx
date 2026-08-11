@@ -89,6 +89,14 @@ export default async function LoginPage({
                   restano scollegati e ogni contenuto generato è etichettato come dimostrativo.
                 </p>
               </>
+            ) : mode.demoUnavailableReason ? (
+              <div className="rounded-md border border-line bg-surface-sunken px-3 py-2.5">
+                <p className="text-xs font-medium text-ink">Modalità demo non disponibile</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted">{mode.demoUnavailableReason}</p>
+                <p className="mt-1 text-[11px] text-muted">
+                  Procedura completa in <span className="font-mono">docs/deployment.md</span>.
+                </p>
+              </div>
             ) : null}
           </div>
         </Card>

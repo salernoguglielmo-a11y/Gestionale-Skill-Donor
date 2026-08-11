@@ -61,6 +61,54 @@ function safeDescription(url: string): string {
   }
 }
 
+/**
+ * PGlite scrive su disco e mantiene lo stato fra una richiesta e l'altra: su una
+ * piattaforma serverless nessuna delle due cose è vera. Il filesystem è di sola
+ * lettura (tranne `/tmp`) e ogni invocazione può girare su un'istanza diversa,
+ * quindi i dati sparirebbero fra una schermata e la successiva.
+ *
+ * Senza questo controllo il primo accesso fallirebbe con un `EROFS` opaco a metà
+ * di una migrazione. Meglio fermarsi subito dicendo esattamente cosa manca.
+ */
+export class PgliteNotAvailableError extends Error {
+  constructor(platform: string) {
+    super(
+      [
+        `DATABASE_URL non è impostata e su ${platform} non è possibile usare PGlite.`,
+        'PGlite richiede un filesystem scrivibile e persistente, che le piattaforme',
+        'serverless non offrono: i dati andrebbero persi a ogni richiesta.',
+        '',
+        'Per procedere serve un PostgreSQL gestito (Vercel Postgres, Neon, Supabase…):',
+        '  1. imposta DATABASE_URL fra le variabili d’ambiente del progetto;',
+        '  2. esegui una volta le migrazioni verso quel database:',
+        '     DATABASE_URL="postgres://…" pnpm db:migrate',
+        '     DATABASE_URL="postgres://…" pnpm db:seed   # facoltativo: snapshot iniziale',
+        '',
+        'Dettagli in docs/deployment.md § Vercel e piattaforme serverless.',
+      ].join('\n'),
+    );
+    this.name = 'PgliteNotAvailableError';
+  }
+}
+
+/** Riconosce le piattaforme serverless più comuni dalle variabili che iniettano. */
+function detectServerlessPlatform(): string | null {
+  if (process.env.VERCEL) return 'Vercel';
+  if (process.env.NETLIFY) return 'Netlify';
+  if (process.env.AWS_LAMBDA_FUNCTION_NAME) return 'AWS Lambda';
+  if (process.env.CF_PAGES) return 'Cloudflare Pages';
+  return null;
+}
+
+function assertPgliteIsUsable(): void {
+  const platform = detectServerlessPlatform();
+  // `ALLOW_PGLITE_ON_SERVERLESS=1` resta come via di fuga consapevole, per chi
+  // stia sperimentando sapendo che i dati non sopravvivono alla richiesta.
+  if (platform && process.env.ALLOW_PGLITE_ON_SERVERLESS !== '1') {
+    throw new PgliteNotAvailableError(platform);
+  }
+}
+
 export async function createDb(options: DbOptions = {}): Promise<DbHandle> {
   const url = options.url ?? process.env.DATABASE_URL ?? '';
 
@@ -80,6 +128,8 @@ export async function createDb(options: DbOptions = {}): Promise<DbHandle> {
       },
     };
   }
+
+  assertPgliteIsUsable();
 
   const dir = resolvePgliteDir(options.pgliteDir ?? process.env.PGLITE_DIR ?? '.data/pglite');
   const [{ PGlite }, { drizzle }] = await Promise.all([
