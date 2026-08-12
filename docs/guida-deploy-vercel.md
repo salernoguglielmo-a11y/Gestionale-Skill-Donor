@@ -52,10 +52,15 @@ vengono cancellati a ogni richiesta.
 
 Tienilo da parte: lo userai al passo 4.
 
-### In alternativa, con Vercel Postgres
+### Se colleghi Neon a Vercel dall'integrazione
 
-Dal progetto Vercel: scheda **Storage → Create Database → Postgres**. Vercel
-imposta `DATABASE_URL` da solo, e puoi saltare quella riga al passo 4.
+Dal progetto Vercel: **Storage → Connect Database**, oppure dal Marketplace di
+Vercel scegliendo Neon. In questo caso **le variabili di connessione le crea
+Vercel** (`DATABASE_URL`, `POSTGRES_URL` e varianti): non devi copiare né
+rinominare nulla, e al passo 4 puoi saltare la riga `DATABASE_URL`.
+
+L'applicazione riconosce tutti questi nomi. Per sapere quale sta usando davvero,
+apri `/api/health` e guarda il campo `database.variabile`.
 
 ---
 
@@ -90,7 +95,7 @@ Variables**), aggiungi queste voci, una per riga.
 
 | Nome | Valore |
 | --- | --- |
-| `DATABASE_URL` | la *connection string* copiata al passo 2 |
+| `DATABASE_URL` | la *connection string* copiata al passo 2 — **salta questa riga** se hai collegato Neon o Vercel Postgres dall'integrazione: la variabile viene creata da sola |
 | `TOKEN_ENCRYPTION_KEY` | una password lunga e casuale, almeno 32 caratteri |
 | `MIGRATION_TOKEN` | un'altra password lunga e casuale, almeno 16 caratteri |
 | `DEMO_MODE` | `off` |
@@ -132,43 +137,39 @@ Ora premi **Deploy** e aspetta qualche minuto.
 ## Passo 5 — Creare le tabelle nel database
 
 Il database esiste ma è **vuoto**: nessuna tabella. Va preparato una volta sola.
+Si fa dal browser, non serve nessun programma.
 
-Apri il **Terminale** (macOS: *Applicazioni → Utility → Terminale*; Windows:
-*Prompt dei comandi*) e incolla questo comando, sostituendo le due parti in
-maiuscolo:
+1. Apri:
 
-```bash
-curl -X POST "https://IL-TUO-DOMINIO/api/admin/migrate?seed=1" \
-  -H "x-migration-token: IL-TUO-MIGRATION-TOKEN"
-```
+   ```
+   https://IL-TUO-DOMINIO/configurazione
+   ```
 
-- `IL-TUO-DOMINIO` è l'indirizzo che ti ha dato Vercel, per esempio
-  `gestionale-skill-donor.vercel.app`
-- `IL-TUO-MIGRATION-TOKEN` è il valore che hai messo in `MIGRATION_TOKEN`
+2. Incolla nel campo il valore che hai messo in **`MIGRATION_TOKEN`**.
+3. Lascia spuntato **«Carica anche i dati iniziali»** se vuoi partire con le 32
+   attività già dentro. Togli la spunta per un gestionale vuoto.
+4. Premi **Prepara il database**.
 
-Se è andato a buon fine vedrai una risposta che contiene:
+Dopo qualche secondo devi leggere, in verde:
 
-```json
-{"stato":"ok","migrazioniApplicate":["0000_init.sql","0001_audit_append_only.sql"],
- "seed":{"tasks":32,"projects":14,"organizations":21, …}}
-```
+> ✓ Database pronto: 32 attività, 14 progetti, 21 organizzazioni.
 
-**32 attività, 14 progetti, 21 organizzazioni**: il gestionale è pronto.
+Puoi ripetere l'operazione senza rischi: non crea duplicati e non cancella nulla.
 
-Puoi ripetere il comando senza rischi: non crea duplicati.
-
-> `?seed=1` carica lo snapshot iniziale con le attività SD-001…SD-032. Se
-> preferisci partire da un gestionale vuoto, togli `?seed=1`.
+> **Se preferisci il terminale**, lo stesso risultato si ottiene con:
+>
+> ```bash
+> curl -X POST "https://IL-TUO-DOMINIO/api/admin/migrate?seed=1" \
+>   -H "x-migration-token: IL-TUO-MIGRATION-TOKEN"
+> ```
 
 ### Subito dopo: rimuovi `MIGRATION_TOKEN`
 
-**Settings → Environment Variables →** accanto a `MIGRATION_TOKEN` premi
-**Remove**, poi **Deployments → … → Redeploy**.
+Su Vercel: **Settings → Environment Variables →** accanto a `MIGRATION_TOKEN`
+premi **Remove**, poi **Deployments → … → Redeploy**.
 
-Da quel momento quell'indirizzo non esiste più (risponde «Not found») e nessuno
-può usarlo.
-
----
+Da quel momento la pagina `/configurazione` dice «Configurazione non attiva» e
+nessuno può usarla.
 
 ## Passo 6 — Verificare che tutto funzioni
 
@@ -246,8 +247,8 @@ La procedura completa, con la lista di verifica del collegamento Gmail, è in
 | Il deploy fallisce subito | Root Directory non impostato | Settings → General → Root Directory = `apps/web` |
 | Pagina bianca o errore 500 | Database non preparato | Rifai il passo 5, poi controlla `/api/health` |
 | «Modalità demo non disponibile» | Manca `DATABASE_URL` | Aggiungila e fai Redeploy |
-| Il comando del passo 5 dà `401` | Token diverso | Il valore dopo `x-migration-token:` deve coincidere con `MIGRATION_TOKEN` |
-| Il comando del passo 5 dà `404` | `MIGRATION_TOKEN` assente o già rimosso | Aggiungila, Redeploy, riprova |
+| «Token non valido» al passo 5 | Token diverso | Deve coincidere esattamente con `MIGRATION_TOKEN`, senza spazi |
+| «Configurazione non attiva» al passo 5 | `MIGRATION_TOKEN` assente o già rimosso | Aggiungila, Redeploy, ricarica la pagina |
 | `redirect_uri_mismatch` al login | Indirizzo diverso da quello registrato | Devono coincidere carattere per carattere, `https://` incluso |
 | «Account non autorizzato» | Email diversa da `ALLOWED_EMAIL` | Entra con l'indirizzo autorizzato |
 

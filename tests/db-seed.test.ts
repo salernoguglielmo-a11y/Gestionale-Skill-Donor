@@ -1,5 +1,13 @@
 import { formatDate, isOverdue, isStale, needsFollowUp } from '@sdoh/core';
-import { createDb, listProjects, listTasks, listThreads, seedDatabase, type DbHandle } from '@sdoh/db';
+import {
+  createDb,
+  listProjects,
+  listTasks,
+  listThreads,
+  resolveConnectionUrl,
+  seedDatabase,
+  type DbHandle,
+} from '@sdoh/db';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDb } from './helpers/db';
@@ -205,5 +213,34 @@ describe('PGlite su piattaforme serverless', () => {
       if (previous === undefined) delete process.env.VERCEL;
       else process.env.VERCEL = previous;
     }
+  });
+});
+
+describe('risoluzione della stringa di connessione', () => {
+  /**
+   * Le integrazioni gestite creano la variabile con nomi diversi: Neon e Vercel
+   * Postgres usano `POSTGRES_URL`, Supabase `DATABASE_URL`. Riconoscerli tutti
+   * evita che l'app sembri "senza database" solo per un nome diverso.
+   */
+  it('preferisce DATABASE_URL quando è impostata a mano', () => {
+    const resolved = resolveConnectionUrl({
+      DATABASE_URL: 'postgres://a@host/manuale',
+      POSTGRES_URL: 'postgres://b@host/integrazione',
+    } as NodeJS.ProcessEnv);
+    expect(resolved.variabile).toBe('DATABASE_URL');
+    expect(resolved.url).toContain('/manuale');
+  });
+
+  it('accetta i nomi generati dalle integrazioni', () => {
+    for (const name of ['POSTGRES_URL', 'DATABASE_URL_UNPOOLED', 'POSTGRES_URL_NON_POOLING', 'NEON_DATABASE_URL']) {
+      const resolved = resolveConnectionUrl({ [name]: 'postgresql://u@host/db' } as NodeJS.ProcessEnv);
+      expect(resolved.variabile, name).toBe(name);
+    }
+  });
+
+  it('ignora i valori che non sono stringhe di connessione PostgreSQL', () => {
+    const resolved = resolveConnectionUrl({ DATABASE_URL: 'mysql://u@host/db' } as NodeJS.ProcessEnv);
+    expect(resolved.variabile).toBeNull();
+    expect(resolved.url).toBe('');
   });
 });

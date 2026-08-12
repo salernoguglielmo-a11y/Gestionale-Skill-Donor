@@ -109,8 +109,39 @@ function assertPgliteIsUsable(): void {
   }
 }
 
+/**
+ * Le integrazioni gestite non usano tutte lo stesso nome per la stringa di
+ * connessione: Neon e Vercel Postgres impostano `POSTGRES_URL` e varianti,
+ * Supabase `DATABASE_URL`. Accettarli tutti evita di dover rinominare a mano una
+ * variabile creata automaticamente — un passaggio facile da dimenticare e
+ * difficile da diagnosticare, perché l'app sembrerebbe semplicemente senza database.
+ *
+ * L'ordine è deliberato: una `DATABASE_URL` impostata a mano vince sempre sulle
+ * variabili generate dall'integrazione.
+ */
+const CONNECTION_URL_VARIABLES = [
+  'DATABASE_URL',
+  'POSTGRES_URL',
+  'DATABASE_URL_UNPOOLED',
+  'POSTGRES_URL_NON_POOLING',
+  'NEON_DATABASE_URL',
+] as const;
+
+export function resolveConnectionUrl(env: NodeJS.ProcessEnv = process.env): {
+  url: string;
+  variabile: string | null;
+} {
+  for (const name of CONNECTION_URL_VARIABLES) {
+    const value = env[name];
+    if (value && (value.startsWith('postgres://') || value.startsWith('postgresql://'))) {
+      return { url: value, variabile: name };
+    }
+  }
+  return { url: '', variabile: null };
+}
+
 export async function createDb(options: DbOptions = {}): Promise<DbHandle> {
-  const url = options.url ?? process.env.DATABASE_URL ?? '';
+  const url = options.url ?? resolveConnectionUrl().url;
 
   if (url.startsWith('postgres://') || url.startsWith('postgresql://')) {
     const [{ default: postgres }, { drizzle }] = await Promise.all([

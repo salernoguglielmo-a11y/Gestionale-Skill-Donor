@@ -1,4 +1,4 @@
-import { createDb, MIGRATIONS_DIR } from '@sdoh/db';
+import { createDb, MIGRATIONS_DIR, resolveConnectionUrl } from '@sdoh/db';
 import { readdir } from 'node:fs/promises';
 import { sql } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
@@ -24,6 +24,8 @@ interface HealthReport {
   stato: 'ok' | 'degradato' | 'errore';
   database: {
     driver: 'postgres' | 'pglite' | null;
+    /** Nome della variabile d'ambiente da cui proviene la connessione. */
+    variabile: string | null;
     raggiungibile: boolean;
     migrazioniApplicate: number | null;
     migrazioniAttese: number;
@@ -54,11 +56,11 @@ function serverlessPlatform(): string | null {
 
 /** Solo i nomi, mai i valori. */
 function missingVariables(): string[] {
-  const required = ['TOKEN_ENCRYPTION_KEY'];
-  const platform = serverlessPlatform();
-  if (platform) required.unshift('DATABASE_URL');
-
-  return required.filter((name) => !process.env[name]);
+  const missing: string[] = [];
+  if (!process.env.TOKEN_ENCRYPTION_KEY) missing.push('TOKEN_ENCRYPTION_KEY');
+  // Su serverless la connessione è obbligatoria, comunque si chiami la variabile.
+  if (serverlessPlatform() && !resolveConnectionUrl().url) missing.push('DATABASE_URL');
+  return missing;
 }
 
 export async function GET() {
@@ -75,6 +77,7 @@ export async function GET() {
 
   const database: HealthReport['database'] = {
     driver: null,
+    variabile: resolveConnectionUrl().variabile,
     raggiungibile: false,
     migrazioniApplicate: null,
     migrazioniAttese: expectedMigrations,

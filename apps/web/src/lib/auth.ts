@@ -1,4 +1,4 @@
-import { getDb, getOwnerUser, seedId, SEED_USER } from '@sdoh/db';
+import { getDb, getOwnerUser, resolveConnectionUrl, seedId, SEED_USER } from '@sdoh/db';
 import { isOAuthConfigured, readOAuthConfig } from '@sdoh/email';
 import { redirect } from 'next/navigation';
 import { readSession, type SessionData } from './session';
@@ -40,7 +40,7 @@ export function getAuthMode(): AuthMode {
   const configured = isOAuthConfigured(config);
 
   const platform = serverlessPlatform();
-  const hasDatabase = Boolean(process.env.DATABASE_URL);
+  const hasDatabase = Boolean(resolveConnectionUrl().url);
 
   let demoAllowed = process.env.DEMO_MODE !== 'off';
   let demoUnavailableReason: string | null = demoAllowed ? null : 'Disattivata con DEMO_MODE=off.';

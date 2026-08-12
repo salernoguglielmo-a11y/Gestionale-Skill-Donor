@@ -105,8 +105,14 @@ package interni vengono risolti.
 
 ### Variabili d'ambiente
 
+Le integrazioni gestite creano la variabile di connessione con nomi diversi.
+L'applicazione accetta, in quest'ordine: `DATABASE_URL`, `POSTGRES_URL`,
+`DATABASE_URL_UNPOOLED`, `POSTGRES_URL_NON_POOLING`, `NEON_DATABASE_URL`. Con
+l'integrazione Neon o Vercel Postgres non serve quindi impostare nulla a mano.
+Il campo `database.variabile` di `/api/health` dice quale è in uso.
+
 ```
-DATABASE_URL           postgres://…        obbligatoria
+DATABASE_URL           postgres://…        obbligatoria (o un alias riconosciuto)
 TOKEN_ENCRYPTION_KEY   openssl rand -base64 32   obbligatoria
 DEMO_MODE              off
 GOOGLE_CLIENT_ID       …
@@ -132,10 +138,17 @@ DATABASE_URL='postgres://…' pnpm db:migrate
 DATABASE_URL='postgres://…' pnpm db:seed     # solo al primo avvio
 ```
 
-### Creazione dello schema senza terminale: `/api/admin/migrate`
+### Creazione dello schema senza terminale
 
 Le migrazioni richiedono normalmente `pnpm` sulla macchina di chi installa. Per
-evitarlo esiste un endpoint che applica le stesse migrazioni versionate:
+evitarlo ci sono due strade equivalenti.
+
+**Dal browser** — pagina `/configurazione`: un modulo che chiede il token e
+mostra l'esito in italiano. È la via consigliata per chi non usa il terminale.
+La pagina non aggiunge privilegi: chiama lo stesso endpoint, con lo stesso
+requisito di token.
+
+**Da terminale** — l'endpoint sottostante:
 
 ```bash
 curl -X POST "https://<dominio>/api/admin/migrate?seed=1" \

@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import { createDb, recordAudit, runMigrations, seedDatabase } from '@sdoh/db';
+import { createDb, recordAudit, resolveConnectionUrl, runMigrations, seedDatabase } from '@sdoh/db';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ errore: 'Token non valido.' }, { status: 401 });
   }
 
-  if (!process.env.DATABASE_URL) {
+  if (!resolveConnectionUrl().url) {
     return NextResponse.json(
       {
         errore: 'DATABASE_URL non è impostata: non c’è alcun database su cui applicare le migrazioni.',
