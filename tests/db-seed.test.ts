@@ -1,5 +1,5 @@
 import { formatDate, isOverdue, isStale, needsFollowUp } from '@sdoh/core';
-import { listProjects, listTasks, listThreads, seedDatabase, type DbHandle } from '@sdoh/db';
+import { createDb, listProjects, listTasks, listThreads, seedDatabase, type DbHandle } from '@sdoh/db';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDb } from './helpers/db';
@@ -150,5 +150,60 @@ describe('audit log', () => {
     );
     const afterRows = (Array.isArray(after) ? after : (after as { rows: unknown[] }).rows) as Array<{ n: number }>;
     expect(Number(afterRows[0]?.n)).toBe(1);
+  });
+});
+
+describe('PGlite su piattaforme serverless', () => {
+  /**
+   * PGlite scrive su disco e mantiene lo stato fra le richieste: su Vercel e
+   * simili nessuna delle due cose è vera. Senza questo controllo il primo
+   * accesso fallirebbe con un errore di filesystem a metà di una migrazione,
+   * difficilissimo da diagnosticare da remoto.
+   */
+  it('si rifiuta di partire senza DATABASE_URL, spiegando cosa manca', async () => {
+    const previous = process.env.VERCEL;
+    process.env.VERCEL = '1';
+    try {
+      await expect(createDb({ pgliteDir: 'memory://' })).rejects.toThrow(/DATABASE_URL non è impostata/);
+      await expect(createDb({ pgliteDir: 'memory://' })).rejects.toThrow(/pnpm db:migrate/);
+    } finally {
+      if (previous === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = previous;
+    }
+  });
+
+  it('consente comunque una deroga consapevole', async () => {
+    const previousVercel = process.env.VERCEL;
+    const previousOverride = process.env.ALLOW_PGLITE_ON_SERVERLESS;
+    process.env.VERCEL = '1';
+    process.env.ALLOW_PGLITE_ON_SERVERLESS = '1';
+    try {
+      const handle = await createDb({ pgliteDir: 'memory://' });
+      expect(handle.driver).toBe('pglite');
+      await handle.close();
+    } finally {
+      if (previousVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = previousVercel;
+      if (previousOverride === undefined) delete process.env.ALLOW_PGLITE_ON_SERVERLESS;
+      else process.env.ALLOW_PGLITE_ON_SERVERLESS = previousOverride;
+    }
+  });
+
+  it('un DATABASE_URL valido ha comunque la precedenza', async () => {
+    const previous = process.env.VERCEL;
+    process.env.VERCEL = '1';
+    try {
+      // Non si connette davvero: `postgres-js` è pigro, quindi il costruttore
+      // riesce anche senza un server in ascolto. Qui interessa solo che il
+      // controllo su PGlite non venga applicato al driver PostgreSQL.
+      const handle = await createDb({ url: 'postgres://utente@127.0.0.1:1/db' });
+      expect(handle.driver).toBe('postgres');
+      // La descrizione non deve mai contenere la password.
+      expect(handle.description).not.toContain('utente:');
+      await handle.close().catch(() => {});
+    } finally {
+      if (previous === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = previous;
+    }
   });
 });

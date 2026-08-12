@@ -128,6 +128,47 @@ DATABASE_URL='postgres://…' pnpm db:migrate
 DATABASE_URL='postgres://…' pnpm db:seed     # solo al primo avvio
 ```
 
+### Diagnostica: `/api/health`
+
+Quando un'istanza appena messa online non funziona e non si ha accesso ai log,
+questo endpoint dice esattamente cosa manca:
+
+```bash
+curl -s https://<dominio>/api/health | jq
+```
+
+Risposta con un deployment configurato correttamente:
+
+```json
+{
+  "stato": "ok",
+  "database": { "driver": "postgres", "raggiungibile": true,
+                "migrazioniApplicate": 2, "migrazioniAttese": 2, "errore": null },
+  "configurazione": { "variabiliMancanti": [], "piattaformaServerless": "Vercel",
+                      "demoAttiva": false },
+  "integrazioni": { "googleOAuth": true, "openai": false, "anthropic": false }
+}
+```
+
+I tre esiti possibili:
+
+| `stato` | HTTP | Significato |
+| --- | --- | --- |
+| `ok` | 200 | Database raggiungibile, schema aggiornato, variabili obbligatorie presenti |
+| `degradato` | 200 | Funziona, ma manca qualcosa: variabili non impostate o migrazioni da applicare |
+| `errore` | 503 | Il database non risponde, oppure manca `DATABASE_URL` su una piattaforma serverless |
+
+Il campo `database.errore` contiene l'istruzione da eseguire, non solo la
+diagnosi. Esempio con schema mai creato:
+
+> «Il database risponde ma lo schema non è stato creato. Eseguire una volta,
+> puntando a questo database: `DATABASE_URL="…" pnpm db:migrate`»
+
+**L'endpoint non espone alcun valore riservato**: nessuna chiave, nessuna
+password, nessun host o nome di database. Solo i *nomi* delle variabili mancanti
+e indicatori booleani. È accessibile senza autenticazione di proposito, perché il
+caso d'uso principale è quello in cui l'accesso non funziona.
+
 ### Limiti da conoscere
 
 - **Il server MCP non gira su Vercel**: usa il trasporto stdio ed è pensato per

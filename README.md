@@ -59,6 +59,16 @@ pnpm dev
 | `pnpm mcp` | Avvia il server MCP su stdio |
 | `pnpm setup` | `install` + `db:migrate` + `db:seed` |
 
+### Diagnostica di un'istanza online
+
+```bash
+curl -s https://<dominio>/api/health | jq
+```
+
+Riporta driver del database, migrazioni applicate, variabili mancanti e stato
+delle integrazioni. Non espone alcun valore riservato: solo i nomi delle
+variabili mancanti e indicatori booleani.
+
 ---
 
 ## Struttura
