@@ -178,6 +178,7 @@ le azioni primarie usano `#C44300` (bianco su questo fondo = 5,0:1).
 | [`docs/threat-model.md`](docs/threat-model.md) | Minacce, contromisure e rischi residui |
 | [`docs/gmail-oauth.md`](docs/gmail-oauth.md) | Configurazione Google OAuth passo per passo |
 | [`docs/mcp.md`](docs/mcp.md) | Server MCP: installazione, Claude, ChatGPT, permessi, minacce |
+| [`docs/guida-deploy-vercel.md`](docs/guida-deploy-vercel.md) | **Guida passo passo per mettere online l'app** (per chi non è sviluppatore) |
 | [`docs/deployment.md`](docs/deployment.md) | Deploy, backup, restore, monitoraggio |
 | [`docs/roadmap.md`](docs/roadmap.md) | Milestone successive |
 | [`SECURITY.md`](SECURITY.md) | Principi di sicurezza e segnalazione delle vulnerabilità |

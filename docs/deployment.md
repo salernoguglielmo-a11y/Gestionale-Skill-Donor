@@ -71,6 +71,10 @@ rieseguirlo**.
 
 ## 3-bis. Vercel e piattaforme serverless
 
+> Per una guida discorsiva passo passo, pensata per chi non è sviluppatore e non
+> vuole installare nulla, vedi **[`guida-deploy-vercel.md`](guida-deploy-vercel.md)**.
+> Questa sezione è il riferimento tecnico.
+
 Il deploy su Vercel funziona, ma con un vincolo che va capito prima di iniziare.
 
 ### PGlite non è utilizzabile in serverless
@@ -127,6 +131,33 @@ una volta, dalla propria macchina, puntando al database remoto:
 DATABASE_URL='postgres://…' pnpm db:migrate
 DATABASE_URL='postgres://…' pnpm db:seed     # solo al primo avvio
 ```
+
+### Creazione dello schema senza terminale: `/api/admin/migrate`
+
+Le migrazioni richiedono normalmente `pnpm` sulla macchina di chi installa. Per
+evitarlo esiste un endpoint che applica le stesse migrazioni versionate:
+
+```bash
+curl -X POST "https://<dominio>/api/admin/migrate?seed=1" \
+  -H "x-migration-token: <MIGRATION_TOKEN>"
+```
+
+Precauzioni, in ordine di importanza:
+
+1. **Disattivato per default**: senza la variabile `MIGRATION_TOKEN` la rotta
+   risponde 404, come se non esistesse.
+2. **Richiede il token** (minimo 16 caratteri), confrontato a tempo costante.
+   Il token è l'approvazione umana esplicita all'operazione.
+3. **Non è distruttivo**: applica solo migrazioni non ancora applicate, e il seed
+   è idempotente. Non esiste alcun percorso che cancelli tabelle o dati.
+4. **Solo POST**: una GET accidentale dal browser non modifica nulla (405).
+5. **Lascia traccia** nell'audit log append-only.
+
+`?seed=1` carica anche lo snapshot iniziale (32 attività, 14 progetti…);
+ometterlo crea solo lo schema.
+
+⚠️ **Terminata la configurazione, rimuovere `MIGRATION_TOKEN`** dalle variabili
+d'ambiente e rifare il deploy: la rotta torna a rispondere 404.
 
 ### Diagnostica: `/api/health`
 
