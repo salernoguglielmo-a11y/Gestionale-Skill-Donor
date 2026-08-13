@@ -11,15 +11,20 @@ desktop-first ma responsive, predisposta per il dominio `ops.skilldonor.org`.
 
 ---
 
-## Avvio in tre comandi
+## Avvio in due comandi
 
 Non servono credenziali, non serve Docker, non serve un database in esecuzione.
 
 ```bash
 pnpm install
-pnpm db:seed      # migrazioni + snapshot del 10 agosto 2026 (idempotente)
 pnpm dev          # http://localhost:3200
 ```
+
+Al primo avvio l'applicazione prepara il database da sola: applica le migrazioni
+e, se non trova nemmeno un'attività, carica lo snapshot del 10 agosto 2026. Vale
+anche online, su un PostgreSQL gestito. Per farlo esplicitamente resta
+`pnpm db:seed`; per disattivarlo, `AUTO_INIT_DB=off` (schema) e `AUTO_SEED=off`
+(dati). Dettagli e garanzie in [`docs/deployment.md`](docs/deployment.md).
 
 Alla schermata di accesso scegliere **“Entra in modalità demo”**.
 
@@ -32,7 +37,6 @@ Non è un mock — sono le stesse migrazioni e lo stesso SQL della produzione.
 ```bash
 pnpm db:up                                                   # docker compose
 echo 'DATABASE_URL=postgres://sdoh:sdoh_local_dev@localhost:5433/sdoh' >> .env
-pnpm db:migrate && pnpm db:seed
 pnpm dev
 ```
 

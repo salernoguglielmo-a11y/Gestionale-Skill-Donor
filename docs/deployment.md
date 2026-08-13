@@ -127,21 +127,46 @@ ANTHROPIC_API_KEY / ANTHROPIC_MODEL     facoltative
 registrato in Google Cloud Console. Gli URL di anteprima di Vercel cambiano a
 ogni deploy: registrare il dominio stabile di produzione, non quello di preview.
 
-### Migrazioni
+### Migrazioni: preparazione automatica al primo utilizzo
 
-Le migrazioni **non vengono eseguite dal deploy**: sarebbero un'operazione di
-schema dentro un processo effimero, con più istanze in parallelo. Vanno lanciate
-una volta, dalla propria macchina, puntando al database remoto:
+Le migrazioni **non girano durante il build** — sarebbe un'operazione di schema
+dentro un processo effimero, prima ancora di sapere se il deploy andrà a buon
+fine. Girano invece **alla prima apertura di una connessione**, una sola volta
+per database, dentro `getDbHandle()` (`packages/db/src/ensure-ready.ts`).
+
+Senza questo, chi installa l'applicazione su una piattaforma gestita si troverebbe
+un database senza tabelle e nessun modo di crearle senza un terminale con Node e
+pnpm. È l'unico passaggio del deploy che richiedeva strumenti da sviluppatore.
+
+Le garanzie che rendono accettabile un'operazione di schema automatica:
+
+| Rischio | Come è escluso |
+| --- | --- |
+| Perdita di dati | Le migrazioni sono additive e versionate; nessuna cancella tabelle, colonne o righe. Quelle già applicate vengono saltate. |
+| Seed sopra dati reali | Il seed parte solo se `select count(*) from tasks` è `0`. Dal secondo avvio non viene più eseguito. |
+| Istanze concorrenti | Su PostgreSQL la preparazione è serializzata da `pg_advisory_xact_lock`: la prima istanza migra, le altre attendono e trovano il lavoro fatto. Il lock si rilascia con la transazione, anche in caso di errore. |
+| Stato intermedio | Tutto avviene in una transazione: un fallimento lascia il database esattamente com'era. |
+| Fallimento bloccante | Un errore qui non impedisce l'avvio: viene scritto su `stderr` e `/api/health` riporta lo stato reale con il rimedio. |
+
+Due variabili disattivano il comportamento:
+
+```
+AUTO_INIT_DB=off    non tocca lo schema; le migrazioni le esegue l'operatore
+AUTO_SEED=off       crea lo schema ma non carica lo snapshot iniziale
+```
+
+Con `AUTO_INIT_DB=off`, o per rieseguire la preparazione dopo un errore, restano
+le vie manuali:
 
 ```bash
 DATABASE_URL='postgres://…' pnpm db:migrate
 DATABASE_URL='postgres://…' pnpm db:seed     # solo al primo avvio
 ```
 
-### Creazione dello schema senza terminale
+### Creazione dello schema senza terminale (via manuale)
 
-Le migrazioni richiedono normalmente `pnpm` sulla macchina di chi installa. Per
-evitarlo ci sono due strade equivalenti.
+Serve solo con `AUTO_INIT_DB=off`, o quando la preparazione automatica è fallita
+e si vuole rilanciarla su richiesta. Due strade equivalenti.
 
 **Dal browser** — pagina `/configurazione`: un modulo che chiede il token e
 mostra l'esito in italiano. È la via consigliata per chi non usa il terminale.
@@ -170,7 +195,9 @@ Precauzioni, in ordine di importanza:
 ometterlo crea solo lo schema.
 
 ⚠️ **Terminata la configurazione, rimuovere `MIGRATION_TOKEN`** dalle variabili
-d'ambiente e rifare il deploy: la rotta torna a rispondere 404.
+d'ambiente e rifare il deploy: la rotta torna a rispondere 404. Con la
+preparazione automatica attiva (impostazione predefinita) la variabile non va
+impostata affatto.
 
 ### Diagnostica: `/api/health`
 

@@ -186,11 +186,39 @@ export async function createDb(options: DbOptions = {}): Promise<DbHandle> {
  * Handle condiviso per il processo. In sviluppo sopravvive all'HMR di Next,
  * altrimenti ogni ricompilazione aprirebbe una nuova istanza PGlite sulla stessa
  * directory e la seconda fallirebbe sul lock.
+ *
+ * Al primo utilizzo prepara anche il database (schema e, se vuoto, dati
+ * iniziali): senza, chi installa l'applicazione su una piattaforma gestita si
+ * troverebbe un database senza tabelle e nessun modo semplice di crearle.
+ * Vedi `ensure-ready.ts` per le garanzie che rendono l'operazione sicura.
  */
 const globalRef = globalThis as unknown as { __sdohDb?: Promise<DbHandle> };
 
+async function createAndPrepare(): Promise<DbHandle> {
+  const handle = await createDb();
+  try {
+    const { ensureDatabaseReady } = await import('./ensure-ready');
+    const esito = await ensureDatabaseReady(handle);
+    if (esito.eseguito && (esito.migrazioniApplicate.length > 0 || esito.seedEseguito)) {
+      process.stderr.write(
+        `[sdoh] database preparato: ${esito.migrazioniApplicate.length} migrazioni` +
+          `${esito.seedEseguito ? ', dati iniziali caricati' : ''}\n`,
+      );
+    }
+  } catch (error) {
+    // Un fallimento qui non deve impedire l'avvio: l'applicazione mostrerà
+    // comunque lo stato reale in /api/health, con l'istruzione per rimediare.
+    process.stderr.write(
+      `[sdoh] preparazione del database non riuscita: ${
+        error instanceof Error ? error.message : 'errore sconosciuto'
+      }\n`,
+    );
+  }
+  return handle;
+}
+
 export function getDbHandle(): Promise<DbHandle> {
-  globalRef.__sdohDb ??= createDb();
+  globalRef.__sdohDb ??= createAndPrepare();
   return globalRef.__sdohDb;
 }
 

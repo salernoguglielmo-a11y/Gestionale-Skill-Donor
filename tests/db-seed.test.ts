@@ -1,6 +1,7 @@
 import { formatDate, isOverdue, isStale, needsFollowUp } from '@sdoh/core';
 import {
   createDb,
+  ensureDatabaseReady,
   listProjects,
   listTasks,
   listThreads,
@@ -242,5 +243,83 @@ describe('risoluzione della stringa di connessione', () => {
     const resolved = resolveConnectionUrl({ DATABASE_URL: 'mysql://u@host/db' } as NodeJS.ProcessEnv);
     expect(resolved.variabile).toBeNull();
     expect(resolved.url).toBe('');
+  });
+});
+
+describe('preparazione automatica del database', () => {
+  /**
+   * L'inizializzazione automatica elimina l'unico passaggio che richiedeva un
+   * terminale. Ciò che non deve mai fare è toccare dati già presenti: queste
+   * prove coprono esattamente quel confine.
+   */
+  it('prepara da zero uno schema assente e carica i dati iniziali', async () => {
+    const handle = await createDb({ pgliteDir: 'memory://' });
+    try {
+      const esito = await ensureDatabaseReady(handle);
+      expect(esito.eseguito).toBe(true);
+      expect(esito.migrazioniApplicate.length).toBeGreaterThan(0);
+      expect(esito.seedEseguito).toBe(true);
+      expect(await listTasks(handle.db)).toHaveLength(32);
+    } finally {
+      await handle.close();
+    }
+  });
+
+  it('non riesegue il seed su un database già popolato', async () => {
+    const handle = await createDb({ pgliteDir: 'memory://' });
+    try {
+      await ensureDatabaseReady(handle);
+
+      // Lavoro reale dell'utente: un'attività modificata e una creata da zero.
+      await handle.db.execute(
+        sql`update tasks set title = 'Modificata dall''utente' where code = 'SD-001'`,
+      );
+      await handle.db.execute(
+        sql`insert into tasks (code, title, status, priority, last_update_at)
+            values ('SD-099', 'Creata dall''utente', 'da_fare', 'alta', now())`,
+      );
+
+      const secondo = await ensureDatabaseReady(handle);
+      expect(secondo.seedEseguito).toBe(false);
+      expect(secondo.migrazioniApplicate).toEqual([]);
+
+      const tasks = await listTasks(handle.db);
+      expect(tasks).toHaveLength(33);
+      expect(tasks.find((t) => t.code === 'SD-001')?.title).toBe('Modificata dall’utente'.replace('’', "'"));
+      expect(tasks.find((t) => t.code === 'SD-099')).toBeDefined();
+    } finally {
+      await handle.close();
+    }
+  });
+
+  it('rispetta AUTO_INIT_DB=off', async () => {
+    const previous = process.env.AUTO_INIT_DB;
+    process.env.AUTO_INIT_DB = 'off';
+    const handle = await createDb({ pgliteDir: 'memory://' });
+    try {
+      const esito = await ensureDatabaseReady(handle);
+      expect(esito.eseguito).toBe(false);
+      expect(esito.motivoSalto).toContain('AUTO_INIT_DB=off');
+    } finally {
+      await handle.close();
+      if (previous === undefined) delete process.env.AUTO_INIT_DB;
+      else process.env.AUTO_INIT_DB = previous;
+    }
+  });
+
+  it('rispetta AUTO_SEED=off: crea lo schema ma lascia il database vuoto', async () => {
+    const previous = process.env.AUTO_SEED;
+    process.env.AUTO_SEED = 'off';
+    const handle = await createDb({ pgliteDir: 'memory://' });
+    try {
+      const esito = await ensureDatabaseReady(handle);
+      expect(esito.eseguito).toBe(true);
+      expect(esito.seedEseguito).toBe(false);
+      expect(await listTasks(handle.db)).toHaveLength(0);
+    } finally {
+      await handle.close();
+      if (previous === undefined) delete process.env.AUTO_SEED;
+      else process.env.AUTO_SEED = previous;
+    }
   });
 });

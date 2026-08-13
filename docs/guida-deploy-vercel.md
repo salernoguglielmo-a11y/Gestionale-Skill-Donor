@@ -97,16 +97,14 @@ Variables**), aggiungi queste voci, una per riga.
 | --- | --- |
 | `DATABASE_URL` | la *connection string* copiata al passo 2 — **salta questa riga** se hai collegato Neon o Vercel Postgres dall'integrazione: la variabile viene creata da sola |
 | `TOKEN_ENCRYPTION_KEY` | una password lunga e casuale, almeno 32 caratteri |
-| `MIGRATION_TOKEN` | un'altra password lunga e casuale, almeno 16 caratteri |
 | `DEMO_MODE` | `off` |
 
-Per generare le due password casuali puoi usare il generatore di un gestore di
+Per generare la password casuale puoi usare il generatore di un gestore di
 password (1Password, Bitwarden, il portachiavi del browser) chiedendo 40
-caratteri. Non devono essere memorizzabili: non le digiterai mai.
+caratteri. Non deve essere memorizzabile: non la digiterai mai.
 
 - `TOKEN_ENCRYPTION_KEY` cifra i token di Gmail. **Conservala**: se la perdi o la
   cambi, dovrai ricollegare Gmail.
-- `MIGRATION_TOKEN` serve una volta sola, al passo 5, e poi va rimossa.
 - `DEMO_MODE=off` chiude l'ingresso senza autenticazione. Se vuoi prima vedere
   l'app con i dati di esempio, lascialo `on` e mettilo su `off` dopo.
 
@@ -134,42 +132,54 @@ Ora premi **Deploy** e aspetta qualche minuto.
 
 ---
 
-## Passo 5 — Creare le tabelle nel database
+## Passo 5 — Le tabelle si creano da sole
 
-Il database esiste ma è **vuoto**: nessuna tabella. Va preparato una volta sola.
-Si fa dal browser, non serve nessun programma.
+Non devi fare niente. Il database appena creato è vuoto — nessuna tabella — ma
+**alla prima apertura l'applicazione lo prepara da sé**: crea le tabelle e, se
+non trova nemmeno un'attività, carica lo snapshot iniziale.
 
-1. Apri:
+Apri semplicemente `https://IL-TUO-DOMINIO` e aspetta qualche secondo: la prima
+schermata è più lenta delle successive, perché è quella che fa il lavoro.
 
-   ```
-   https://IL-TUO-DOMINIO/configurazione
-   ```
+Perché puoi fidarti di un'operazione automatica sul database:
 
-2. Incolla nel campo il valore che hai messo in **`MIGRATION_TOKEN`**.
-3. Lascia spuntato **«Carica anche i dati iniziali»** se vuoi partire con le 32
-   attività già dentro. Togli la spunta per un gestionale vuoto.
-4. Premi **Prepara il database**.
+- le migrazioni sono **additive e versionate**: nessuna cancella dati o colonne,
+  e quelle già applicate vengono saltate;
+- i dati di esempio si caricano **solo se il database è completamente vuoto**;
+  dal secondo avvio in poi non vengono più toccati, e le tue modifiche restano;
+- avviene tutto **in una sola transazione**: se qualcosa fallisce, il database
+  resta esattamente com'era;
+- se Vercel avvia più copie insieme, un **lock** fa sì che solo la prima prepari
+  lo schema e le altre aspettino: niente doppioni.
 
-Dopo qualche secondo devi leggere, in verde:
+Vai al passo 6 per la conferma.
 
-> ✓ Database pronto: 32 attività, 14 progetti, 21 organizzazioni.
+<details>
+<summary>Se preferisci decidere tu (facoltativo)</summary>
 
-Puoi ripetere l'operazione senza rischi: non crea duplicati e non cancella nulla.
+Due variabili d'ambiente cambiano questo comportamento:
 
-> **Se preferisci il terminale**, lo stesso risultato si ottiene con:
->
-> ```bash
-> curl -X POST "https://IL-TUO-DOMINIO/api/admin/migrate?seed=1" \
->   -H "x-migration-token: IL-TUO-MIGRATION-TOKEN"
-> ```
+| Variabile | Effetto |
+| --- | --- |
+| `AUTO_SEED=off` | crea le tabelle ma **non** carica le 32 attività: gestionale vuoto |
+| `AUTO_INIT_DB=off` | non tocca lo schema: le migrazioni le esegui tu |
 
-### Subito dopo: rimuovi `MIGRATION_TOKEN`
+Con `AUTO_INIT_DB=off` resta la via manuale dal browser: aggiungi una variabile
+`MIGRATION_TOKEN` (una password casuale di almeno 16 caratteri), apri
+`https://IL-TUO-DOMINIO/configurazione`, incolla lo stesso valore e premi
+**Prepara il database**. Poi rimuovi `MIGRATION_TOKEN` e fai Redeploy: la pagina
+tornerà a dire «Configurazione non attiva».
 
-Su Vercel: **Settings → Environment Variables →** accanto a `MIGRATION_TOKEN`
-premi **Remove**, poi **Deployments → … → Redeploy**.
+Dal terminale, lo stesso risultato:
 
-Da quel momento la pagina `/configurazione` dice «Configurazione non attiva» e
-nessuno può usarla.
+```bash
+curl -X POST "https://IL-TUO-DOMINIO/api/admin/migrate?seed=1" \
+  -H "x-migration-token: IL-TUO-MIGRATION-TOKEN"
+```
+
+</details>
+
+---
 
 ## Passo 6 — Verificare che tutto funzioni
 
@@ -187,7 +197,10 @@ Cosa devi vedere:
 | `"stato":"degradato"` | funziona ma manca qualcosa | guarda `variabiliMancanti` e `migrazioniApplicate` |
 | `"stato":"errore"` | il database non risponde | ricontrolla `DATABASE_URL` |
 
-Se `migrazioniApplicate` è `0`, il passo 5 non è andato a buon fine: ripetilo.
+Guarda anche `database.migrazioniApplicate`: deve essere pari a
+`migrazioniAttese`. Se è `0`, la preparazione automatica non è riuscita —
+ricarica la pagina principale una volta e riprova; se resta a `0`, incollami la
+risposta di `/api/health` e ti dico cosa manca.
 
 Questo indirizzo **non mostra password né chiavi**, solo i nomi di ciò che manca:
 puoi aprirlo tranquillamente e, se serve, incollarmi la risposta.
@@ -245,10 +258,11 @@ La procedura completa, con la lista di verifica del collegamento Gmail, è in
 | Sintomo | Causa | Rimedio |
 | --- | --- | --- |
 | Il deploy fallisce subito | Root Directory non impostato | Settings → General → Root Directory = `apps/web` |
-| Pagina bianca o errore 500 | Database non preparato | Rifai il passo 5, poi controlla `/api/health` |
+| Pagina bianca o errore 500 | Database non ancora preparato | Ricarica una volta, poi controlla `/api/health` |
 | «Modalità demo non disponibile» | Manca `DATABASE_URL` | Aggiungila e fai Redeploy |
-| «Token non valido» al passo 5 | Token diverso | Deve coincidere esattamente con `MIGRATION_TOKEN`, senza spazi |
-| «Configurazione non attiva» al passo 5 | `MIGRATION_TOKEN` assente o già rimosso | Aggiungila, Redeploy, ricarica la pagina |
+| Il gestionale è vuoto, senza attività | `AUTO_SEED=off`, oppure il database conteneva già qualcosa | Rimuovi `AUTO_SEED`, Redeploy: i dati si caricano solo su un database vuoto |
+| «Token non valido» in `/configurazione` | Token diverso | Deve coincidere esattamente con `MIGRATION_TOKEN`, senza spazi |
+| «Configurazione non attiva» | `MIGRATION_TOKEN` assente o già rimosso | Normale: la preparazione manuale serve solo con `AUTO_INIT_DB=off` |
 | `redirect_uri_mismatch` al login | Indirizzo diverso da quello registrato | Devono coincidere carattere per carattere, `https://` incluso |
 | «Account non autorizzato» | Email diversa da `ALLOWED_EMAIL` | Entra con l'indirizzo autorizzato |
 

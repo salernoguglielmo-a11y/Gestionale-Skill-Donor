@@ -4,6 +4,7 @@ export * from './client';
 export * from './migrate';
 export * from './queries';
 export * from './audit';
+export * from './ensure-ready';
 export * from './ids';
 export { seedDatabase } from './seed';
 export { SEED_TODAY, SEED_USER } from './seed-data';
