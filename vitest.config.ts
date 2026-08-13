@@ -10,6 +10,9 @@ export default defineConfig({
       '@sdoh/db': r('./packages/db/src/index.ts'),
       '@sdoh/ai': r('./packages/ai/src/index.ts'),
       '@sdoh/email': r('./packages/email/src/index.ts'),
+      // Stesso alias di `apps/web/tsconfig.json`: serve ai test che verificano la
+      // logica di accesso senza dover avviare Next.
+      '@/': r('./apps/web/src/'),
     },
   },
   test: {

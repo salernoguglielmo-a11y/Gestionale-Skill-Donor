@@ -12,7 +12,10 @@
       "@sdoh/email": ["./packages/email/src/index.ts"],
       "@sdoh/email/*": ["./packages/email/src/*"],
       "@sdoh/ui": ["./packages/ui/src/index.ts"],
-      "@sdoh/ui/*": ["./packages/ui/src/*"]
+      "@sdoh/ui/*": ["./packages/ui/src/*"],
+      // Stesso alias di apps/web/tsconfig.json: i test in `tests/` verificano
+      // anche la logica dell'app web, senza doverla duplicare.
+      "@/*": ["./apps/web/src/*"]
     }
   },
   "include": ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx", "tests/**/*.ts"],

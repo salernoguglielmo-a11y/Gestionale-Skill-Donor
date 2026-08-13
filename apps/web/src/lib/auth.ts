@@ -35,9 +35,32 @@ function serverlessPlatform(): string | null {
   return null;
 }
 
+/**
+ * Ogni accesso — reale o dimostrativo — apre una sessione in un cookie cifrato
+ * con `TOKEN_ENCRYPTION_KEY`. Senza quella chiave `encryptJson` solleva
+ * un'eccezione e il pulsante di accesso porta a un errore 500 opaco, dopo che
+ * l'utente lo ha premuto: esattamente il «pulsante finto» che vogliamo evitare.
+ * Meglio dichiararlo prima, con l'istruzione per rimediare.
+ */
+const MIN_ENCRYPTION_KEY_LENGTH = 16;
+
+function sessionKeyReady(): boolean {
+  return (process.env.TOKEN_ENCRYPTION_KEY ?? '').length >= MIN_ENCRYPTION_KEY_LENGTH;
+}
+
 export function getAuthMode(): AuthMode {
   const config = readOAuthConfig();
-  const configured = isOAuthConfigured(config);
+  const oauthComplete = isOAuthConfigured(config);
+  const keyReady = sessionKeyReady();
+
+  // Senza chiave di sessione il flusso Google fallirebbe al ritorno da Google,
+  // a consenso già dato: va contata fra le variabili mancanti, non scoperta a
+  // metà procedura.
+  const configured = oauthComplete && keyReady;
+  const missing = [
+    ...(oauthComplete ? [] : config.missing),
+    ...(keyReady ? [] : ['TOKEN_ENCRYPTION_KEY']),
+  ];
 
   const platform = serverlessPlatform();
   const hasDatabase = Boolean(resolveConnectionUrl().url);
@@ -53,12 +76,20 @@ export function getAuthMode(): AuthMode {
       'persistente, che le piattaforme serverless non offrono.';
   }
 
+  if (demoAllowed && !keyReady) {
+    demoAllowed = false;
+    demoUnavailableReason =
+      'Manca TOKEN_ENCRYPTION_KEY, la chiave che cifra il cookie di sessione: senza, nessun ' +
+      `accesso può essere aperto. Impostala fra le variabili d’ambiente (almeno ${MIN_ENCRYPTION_KEY_LENGTH} ` +
+      'caratteri casuali, consigliati 40) e rifai il deploy.';
+  }
+
   return {
     googleConfigured: configured,
-    missingVariables: configured ? [] : config.missing,
+    missingVariables: configured ? [] : missing,
     demoAllowed,
     demoUnavailableReason,
-    allowedEmail: configured ? config.allowedEmail : (process.env.ALLOWED_EMAIL ?? null),
+    allowedEmail: oauthComplete ? config.allowedEmail : (process.env.ALLOWED_EMAIL ?? null),
   };
 }
 

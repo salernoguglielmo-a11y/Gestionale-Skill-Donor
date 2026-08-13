@@ -15,7 +15,12 @@ import { createSession } from '@/lib/session';
 export async function POST(request: NextRequest) {
   const mode = getAuthMode();
   if (!mode.demoAllowed) {
-    return NextResponse.json({ error: 'La modalità demo è disattivata (DEMO_MODE=off).' }, { status: 403 });
+    // Il motivo è già calcolato: riportarlo evita di attribuire a `DEMO_MODE` un
+    // rifiuto che dipende invece dal database o dalla chiave di sessione.
+    return NextResponse.json(
+      { error: mode.demoUnavailableReason ?? 'La modalità demo non è disponibile.' },
+      { status: 403 },
+    );
   }
 
   const identity = demoUserIdentity();
