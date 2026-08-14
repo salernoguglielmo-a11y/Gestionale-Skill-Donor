@@ -97,16 +97,20 @@ Variables**), aggiungi queste voci, una per riga.
 | --- | --- |
 | `DATABASE_URL` | la *connection string* copiata al passo 2 — **salta questa riga** se hai collegato Neon o Vercel Postgres dall'integrazione: la variabile viene creata da sola |
 | `TOKEN_ENCRYPTION_KEY` | una password lunga e casuale, almeno 32 caratteri |
-| `DEMO_MODE` | `off` |
+| `DEMO_MODE` | `on` — lo metterai su `off` al passo 8, quando l'accesso Google funziona |
 
 Per generare la password casuale puoi usare il generatore di un gestore di
 password (1Password, Bitwarden, il portachiavi del browser) chiedendo 40
 caratteri. Non deve essere memorizzabile: non la digiterai mai.
 
-- `TOKEN_ENCRYPTION_KEY` cifra i token di Gmail. **Conservala**: se la perdi o la
-  cambi, dovrai ricollegare Gmail.
-- `DEMO_MODE=off` chiude l'ingresso senza autenticazione. Se vuoi prima vedere
-  l'app con i dati di esempio, lascialo `on` e mettilo su `off` dopo.
+- `TOKEN_ENCRYPTION_KEY` cifra il cookie di sessione e i token di Gmail. Serve
+  per **qualunque** accesso, demo compreso: senza, l'applicazione non può aprire
+  nessuna sessione e te lo dice nella schermata di accesso. **Conservala** nel
+  gestore di password: se la perdi o la cambi, dovrai ricollegare Gmail.
+- `DEMO_MODE` regola l'ingresso senza autenticazione. Tienilo su `on` finché non
+  hai completato il passo 8: `off` chiude la demo, e prima che Google sia
+  configurato resteresti fuori dall'applicazione, senza alcun modo di entrare.
+  Lo metterai su `off` alla fine, quando l'accesso con il tuo indirizzo funziona.
 
 ### Per l'accesso con Google (puoi aggiungerle dopo, vedi passo 8)
 
@@ -211,9 +215,18 @@ puoi aprirlo tranquillamente e, se serve, incollarmi la risposta.
 
 Apri `https://IL-TUO-DOMINIO`.
 
-- Se hai lasciato `DEMO_MODE=on`, premi **Entra in modalità demo**: vedrai il
-  gestionale con le 32 attività.
-- Se hai messo `DEMO_MODE=off`, ti serve prima l'accesso Google: passo 8.
+Con `DEMO_MODE=on` premi **Entra in modalità demo**: vedrai il gestionale con le
+32 attività.
+
+La schermata di accesso non offre mai un pulsante che non funzionerebbe: se un
+ingresso non è disponibile, al suo posto trovi il motivo e cosa impostare.
+Quindi, se non vedi il pulsante della demo, leggi il riquadro:
+
+| Se leggi… | Causa | Rimedio |
+| --- | --- | --- |
+| «Manca TOKEN_ENCRYPTION_KEY…» | la chiave di sessione non è impostata | Aggiungila (passo 4) e fai Redeploy |
+| «Disattivata con DEMO_MODE=off» | l'ingresso demo è chiuso | Se non hai ancora fatto il passo 8, rimettilo su `on` e fai Redeploy: altrimenti non puoi entrare |
+| «Su Vercel la modalità demo richiede un database gestito…» | manca la variabile di connessione | Controlla `DATABASE_URL` (passo 2) |
 
 ---
 
