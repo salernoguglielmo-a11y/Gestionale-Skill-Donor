@@ -18,6 +18,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "db:generate": "pnpm --filter @sdoh/db generate",
+    "db:bundle": "node packages/db/scripts/build-migrations-bundle.mjs",
     "db:migrate": "pnpm --filter @sdoh/db migrate",
     "db:seed": "pnpm --filter @sdoh/db seed",
     "db:reset": "pnpm --filter @sdoh/db reset",

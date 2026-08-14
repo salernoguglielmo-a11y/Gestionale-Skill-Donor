@@ -1,5 +1,4 @@
-import { createDb, MIGRATIONS_DIR, resolveConnectionUrl } from '@sdoh/db';
-import { readdir } from 'node:fs/promises';
+import { createDb, EMBEDDED_MIGRATIONS, resolveConnectionUrl } from '@sdoh/db';
 import { sql } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { providerStatus } from '@/lib/ai-service';
@@ -67,13 +66,9 @@ export async function GET() {
   const authMode = getAuthMode();
   const platform = serverlessPlatform();
 
-  let expectedMigrations = 0;
-  try {
-    expectedMigrations = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith('.sql')).length;
-  } catch {
-    // La directory delle migrazioni non è tracciata nel bundle: non è un errore
-    // di per sé, ma il confronto con quelle applicate diventa indicativo.
-  }
+  // Le migrazioni sono incorporate nel bundle: il conteggio atteso è noto con
+  // certezza anche in una funzione serverless, dove la directory non esiste.
+  const expectedMigrations = EMBEDDED_MIGRATIONS.length;
 
   const database: HealthReport['database'] = {
     driver: null,

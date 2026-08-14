@@ -1,9 +1,17 @@
-import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sql } from 'drizzle-orm';
 import type { Db, DbHandle } from './client';
+import { EMBEDDED_MIGRATIONS } from './migrations-bundle';
 
+/**
+ * Percorso dei file `.sql`, fonte di verità delle migrazioni.
+ *
+ * Serve agli strumenti da riga di comando (drizzle-kit) e ai test che
+ * verificano l'allineamento del bundle. **Non va usato a runtime**: dentro una
+ * funzione serverless questa directory non esiste, perché il bundler include
+ * solo i file visibili all'analisi statica del codice.
+ */
 export const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
 
 /**
@@ -13,6 +21,10 @@ export const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..'
  * percorso identico per PostgreSQL e PGlite, perché le migrazioni devono essere
  * *le stesse* verificate in test. Le istruzioni sono applicate in ordine di nome
  * file, dentro una transazione per file, e registrate in `__drizzle_migrations`.
+ *
+ * L'SQL arriva da `migrations-bundle.ts`, generato dai file `.sql` e incorporato
+ * nel bundle JavaScript: leggerlo dal disco funzionava in sviluppo ma falliva in
+ * produzione con `ENOENT … scandir '/var/task/packages/db/migrations'`.
  */
 export async function runMigrations(handle: DbHandle | Db): Promise<{ applied: string[]; skipped: string[] }> {
   const db: Db = 'db' in (handle as DbHandle) ? (handle as DbHandle).db : (handle as Db);
@@ -28,21 +40,20 @@ export async function runMigrations(handle: DbHandle | Db): Promise<{ applied: s
   const rows = await db.execute<{ hash: string }>(sql`select hash from __drizzle_migrations`);
   const done = new Set((rowsOf(rows) as Array<{ hash: string }>).map((r) => r.hash));
 
-  const files = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith('.sql')).sort();
+  const files = [...EMBEDDED_MIGRATIONS].sort((a, b) => a.name.localeCompare(b.name));
   const applied: string[] = [];
   const skipped: string[] = [];
 
-  for (const file of files) {
-    if (done.has(file)) {
-      skipped.push(file);
+  for (const { name, sql: raw } of files) {
+    if (done.has(name)) {
+      skipped.push(name);
       continue;
     }
-    const raw = await readFile(join(MIGRATIONS_DIR, file), 'utf8');
     for (const statement of splitStatements(raw)) {
       await db.execute(sql.raw(statement));
     }
-    await db.execute(sql`insert into __drizzle_migrations (hash) values (${file})`);
-    applied.push(file);
+    await db.execute(sql`insert into __drizzle_migrations (hash) values (${name})`);
+    applied.push(name);
   }
 
   return { applied, skipped };

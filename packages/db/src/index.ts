@@ -2,6 +2,7 @@ export * as schema from './schema';
 export * from './schema';
 export * from './client';
 export * from './migrate';
+export * from './migrations-bundle';
 export * from './queries';
 export * from './audit';
 export * from './ensure-ready';
